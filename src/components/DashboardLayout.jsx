@@ -141,6 +141,7 @@ const DashboardLayout = ({ children }) => {
 
     // 2️⃣ Se existir kanban mas nenhum visível → cria placeholder
     const hasKanbanSub = m.submodules.some((sub) => sub.kanban);
+    
     if (hasKanbanSub && filteredSubmodules.length === 0) {
       filteredSubmodules = [
         {

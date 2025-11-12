@@ -272,7 +272,7 @@ export default function ModernSidebarLayout({
 
         const { data: inserted, error:errorSteps } = await supabase
         .from("kanban_steps")
-        .insert([{ kanban_id: subm[0].id, name: 'Etapa 1', position: steps.length }])
+        .insert([{ kanban_id: subm[0].id, name: 'Etapa 1', position: steps.length, user_id:user?.id }])
         .select()
         .single();
 

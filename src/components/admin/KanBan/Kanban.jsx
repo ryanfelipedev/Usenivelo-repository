@@ -50,14 +50,14 @@
     const [loading, setLoading] = useState(true);
     const [submoduleName, setSubmoduleName] = useState('')
     const [onlyView, setOnlyView] = useState(false)
-    const [openCreateKanban, setOpenCreateKanban] = useState(false)
+    const [openCreateStepKanban, setOpenCreateStepKanban] = useState(false)
     const [newKanbanName, setNewKanbanName] = useState('')
 
     
     // ------------------- FETCH -------------------
     const fetchData = async () => {
     try {
-      setLoading(true)
+    
       // Usuário logado
       const { data: userData } = await supabase.auth.getUser();
       setUser(userData.user);
@@ -411,7 +411,6 @@ function formatISODate(isoString) {
     }
   // Verifica se o usuário pode acessar o Kanban
   const canAccessKanban = user?.id === kanban.user_id || kanban.share;
-
   // Se não pode acessar
   if (!canAccessKanban) {
     return (
@@ -427,13 +426,14 @@ function formatISODate(isoString) {
     );
   }
 
-  // Filtra as etapas que o usuário tem permissão
+  // Filtra as etapas que o usuário tem permissão ou que ele é dono
   const stepsDoUsuario = steps.filter(step =>
-    stepsPerms.some(p => p.step_id === step.id && p.user_id === user?.id)
+    stepsPerms.some(p => p.step_id === step.id || p.user_id === user?.id)
   );
 
-  // Se o usuário não possui permissão em nenhuma etapa
-  if (!stepsDoUsuario.length) {
+  // Se o usuário não possui permissão em nenhuma etapa e não for o dono
+  
+  if (!stepsDoUsuario.length && user?.id != kanban.user_id) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="p-6 text-center text-gray-500 italic border border-gray-300 rounded-md bg-gray-50 dark:bg-gray-900">
@@ -468,7 +468,7 @@ function formatISODate(isoString) {
     <Button
     className="ml-2"
     onClick={()=> {
-      setOpenCreateKanban(true)
+      setOpenCreateStepKanban(true)
     }}
     >
       <PlusCircle className="mr-2"/> Novo
@@ -803,16 +803,17 @@ function formatISODate(isoString) {
           <KanbanCard fields={selectFields} subFields={selectSubFields} submodule_id={submoduleId} onClose={() => setOpenRecordModal(false)} isOpen={openRecordModal} creating={true} submoduleName={submoduleName} 
           kanban={true} created_by={user.id} position={1} step_id={stepSelect} handleReloadKanban={handleReloadKanban} record={record} canEdit={canEdit} onlyView={onlyView} usuarios={usuarios} companies={companies}/>
         </Modal>
+        {/**Open Create Step */}
         <Modal
-        isOpen={openCreateKanban}
-        onClose={()=> setOpenCreateKanban(false)}
+        isOpen={openCreateStepKanban}
+        onClose={()=> setOpenCreateStepKanban(false)}
         size='md'
         >
           <div className=" dark:bg-gray-800 rounded mt-2">
-              <h2 className="text-center mb-2 font-semibold text-lg">Novo Kanban</h2>
+              <h2 className="text-center mb-2 font-semibold text-lg">Nova Etapa</h2>
               <input
                 type="text"
-                placeholder="Nome do Kanban"
+                placeholder="Nome da etapa"
                 value={newKanbanName}
                 onChange={(e) => setNewKanbanName(e.target.value)}
                 className="w-full px-3 py-2 rounded border dark:border-gray-600 dark:bg-gray-700"
@@ -825,40 +826,16 @@ function formatISODate(isoString) {
                   const user = dataUser?.user;
             
                   if (userError || !user) return;
-          
-                  const { data: subm, error } = await supabase
-                  .from('submodules')
+                  
+                  //step_id mesma coisa que submodule_id
+                  const { data: step, error } = await supabase
+                  .from('kanban_steps')
                   .insert({
-                    name: newKanbanName,
-                    module_id: kanbanCreator.id,
-                    type: 'Customizado',
-                    share: false,
-                    kanban: true,
-                    path:`/admin/KanBan/`,
-                    user_id: user.id
+                    kanban_id: kanban_id,
+                    name:newKanbanName,
+                    position:steps.length,
+                    user_id:user?.id
                   })
-                  .select()
-          
-                  const { data: inserted, error:errorSteps } = await supabase
-                  .from("kanban_steps")
-                  .insert([{ kanban_id: subm[0].id, name: 'Etapa 1', position: steps.length }])
-                  .select()
-                  .single();
-          
-                  const payload = {
-                    step_id: inserted.id,
-                    user_id: user.id,
-                    move:true, 
-                    view:true,
-                    edit:true,
-                    create:true,
-                    delete:true
-                  };
-                  const { data, errorStep } = await supabase
-                  .from("kanban_steps_permissions")
-                  .insert(payload)
-          
-                  navigate(`/admin/KanBan/${subm.id}`)
                   
                 if (error) {
                   console.error(error);
@@ -866,20 +843,19 @@ function formatISODate(isoString) {
                   return;
                 }
           
-                // Agora você tem o ID do submodule criado
-                const path = `/admin/KanBan/${subm[0].id}`;
           
                 // Opcional: atualizar sidebar ou redirecionar
-                toast({ title: 'Kanban criado!', description: newKanbanName });
-                navigate(path);
-                refreshSidebar()
+                toast({ title: 'Etapa criada!', description: newKanbanName });
+                //para atualizar
+                fetchData()
+
                 }}
               >
                 Criar
               </Button>
               <button
               className="text-center bg-gray-200 w-full mt-2 p-2 rounded-sm"
-              onClick={()=> setOpenCreateKanban(false)}
+              onClick={()=> setOpenCreateStepKanban(false)}
               >Fechar</button>
             </div>
         </Modal>
