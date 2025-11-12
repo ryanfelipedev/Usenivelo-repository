@@ -123,21 +123,27 @@ const DashboardLayout = ({ children }) => {
     const IconComponent = Icons[m.icon] || Icons.Zap;
 
     // 1️⃣ Filtra submodules
-    let filteredSubmodules = (m.submodules || []).filter((sub) => {
-      // Submódulos normais sempre aparecem
+    const filteredSubmodules = (m.submodules || []).filter((sub) => {
+      // Sempre mostra submódulos que não são Kanban
       if (!sub.kanban) return true;
 
-      // Se for Kanban: precisa ser dono ou ter permissão em alguma etapa
-      const stepsOfSub = stepsData.filter((step) => step.kanban_id === sub.id);
+      // Pega as etapas pertencentes a este submódulo
+      const stepsOfSub = stepsData.filter(step => step.kanban_id === sub.id);
 
-      const hasAnyStepPerm = stepsOfSub.some((step) =>
-        permsData.some(
-          (perm) => perm.step_id === step.id && perm.user_id === dbUser.id
-        )
+      // Verifica se o usuário tem permissão em alguma etapa desse submódulo
+      const hasStepPermission = permsData.some(
+        perm =>
+          perm.user_id === dbUser.id &&
+          stepsOfSub.some(step => step.id === perm.step_id)
       );
 
-      return isOwner || hasAnyStepPerm;
+      // Verifica se o submódulo pertence ao usuário
+      const isSubOwner = sub.user_id === dbUser.id;
+
+      // Retorna se for dono global, dono do sub, ou tiver permissão em alguma etapa
+      return isOwner || isSubOwner || hasStepPermission;
     });
+
 
     // 2️⃣ Se existir kanban mas nenhum visível → cria placeholder
     const hasKanbanSub = m.submodules.some((sub) => sub.kanban);
