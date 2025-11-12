@@ -6,6 +6,7 @@ import LogoNivelo from "../../images/LogoNivelo.png";
 import {Button} from "@/components/ui/button"
 import { supabase } from "@/lib/customSupabaseClient";
 import {useToast} from "@/components/ui/use-toast"
+import { useDashboard } from '@/contexts/DashboardContext';
 
 export default function ModernSidebarLayout({
   company,
@@ -19,6 +20,7 @@ export default function ModernSidebarLayout({
   const navigate = useNavigate();
   const location = useLocation();
   const {toast} = useToast();
+  const { refreshSidebar } = useDashboard();
 
   const [selectedModule, setSelectedModule] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -197,120 +199,108 @@ export default function ModernSidebarLayout({
       {/* --- LISTA DE SUBMÓDULOS --- */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 scrollbar-track-transparent">
        {selectedModule.submodules?.map((sub, index) => {
-  const activeSub = location.pathname === sub.path;
-  // Se for create-kanban, não é Link, é botão
-  if (sub.id === 'create-kanban') {
-    return (
-      <div key={`create-kanban-${index}`} className="px-4 py-2">
-        <button
-          className="w-full flex items-center justify-center px-4 py-2 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700 transition"
-          onClick={() => setOpenCreateKanban(true)} // abrir modal ou inline form
-        >
-          {sub.label}
-        </button>
-      </div>
-    );
-  }
-  // Define path normal
-  const path = sub.kanban
-  ? `/admin/KanBan/${sub.id}`
-  : selectedModule.type === "Customizado"
-  ? `/admin/modules/${selectedModule.id}/sub/${sub.id}`
-  : sub.path;
+        const activeSub = location.pathname === sub.path;
+        // Se for create-kanban, não é Link, é botão
+          // Define path normal
+          const path = sub.kanban
+          ? `/admin/KanBan/${sub.id}`
+          : selectedModule.type === "Customizado"
+          ? `/admin/modules/${selectedModule.id}/sub/${sub.id}`
+          : sub.path;
 
-  return (
-    <Link
-      key={`${sub.id ?? sub.label}-${index}`}
-      to={path}
-      title={sub.label}
-      onClick={handleCloseSubSidebar}
-      className={`flex items-center px-4 py-2 rounded-lg text-sm transition-all duration-150 truncate ${
-        activeSub
-          ? 'bg-black text-white shadow-md'
-          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-      }`}
-    >
-      <div className="flex items-center ">
-        {sub.userLogo && <img src={sub.userLogo} className="w-8 h-8 mr-2  border border-gray-300 rounded-full"/>}
-        <span className="truncate max-w-[200px]">{sub.label}</span>
-      </div>
-    </Link>
-  );
-})}
+          return (
+            <Link
+              key={`${sub.id ?? sub.label}-${index}`}
+              to={path}
+              title={sub.label}
+              onClick={handleCloseSubSidebar}
+              className={`flex items-center px-4 py-2 rounded-lg text-sm transition-all duration-150 truncate ${
+                activeSub
+                  ? 'bg-black text-white shadow-md'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              <div className="flex items-center ">
+                {sub.userLogo && <img src={sub.userLogo} className="w-8 h-8 mr-2  border border-gray-300 rounded-full"/>}
+                <span className="truncate max-w-[200px]">{sub.label}</span>
+              </div>
+            </Link>
+          );
+        })}
 
-{/* Modal ou inline form */}
-{openCreateKanban && (
-  <div className="p-4 bg-white dark:bg-gray-800 rounded shadow mt-2">
-    <input
-      type="text"
-      placeholder="Nome do Kanban"
-      value={newKanbanName}
-      onChange={(e) => setNewKanbanName(e.target.value)}
-      className="w-full px-3 py-2 rounded border dark:border-gray-600 dark:bg-gray-700"
-    />
-    <button
-      className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-      onClick={async () => {
-        const { data:dataUser, error: userError } = await supabase.auth.getUser();
+      {/* Modal ou inline form */}
+      {openCreateKanban && (
+        <div className="p-4 bg-white dark:bg-gray-800 rounded shadow mt-2">
+          <input
+            type="text"
+            placeholder="Nome do Kanban"
+            value={newKanbanName}
+            onChange={(e) => setNewKanbanName(e.target.value)}
+            className="w-full px-3 py-2 rounded border dark:border-gray-600 dark:bg-gray-700"
+          />
+          <Button
+            className="mt-2 px-4 py-2 text-white rounded w-full"
+            onClick={async () => {
+              const { data:dataUser, error: userError } = await supabase.auth.getUser();
+              
+              const user = dataUser?.user;
         
-        const user = dataUser?.user;
-  
-        if (userError || !user) return;
+              if (userError || !user) return;
 
-        const { data: subm, error } = await supabase
-        .from('submodules')
-        .insert({
-          name: newKanbanName,
-          module_id: selectedModule.id,
-          type: 'Customizado',
-          share: false,
-          kanban: true,
-          path:`/admin/KanBan/`,
-          user_id: user.id
-        })
-        .select()
+              const { data: subm, error } = await supabase
+              .from('submodules')
+              .insert({
+                name: newKanbanName,
+                module_id: selectedModule.id,
+                type: 'Customizado',
+                share: false,
+                kanban: true,
+                path:`/admin/KanBan/`,
+                user_id: user.id
+              })
+              .select()
 
-        const { data: inserted, error:errorSteps } = await supabase
-        .from("kanban_steps")
-        .insert([{ kanban_id: subm[0].id, name: 'Etapa 1', position: steps.length, user_id:user?.id }])
-        .select()
-        .single();
+              const { data: inserted, error:errorSteps } = await supabase
+              .from("kanban_steps")
+              .insert([{ kanban_id: subm[0].id, name: 'Etapa 1', position: steps.length, user_id:user?.id }])
+              .select()
+              .single();
 
-        const payload = {
-          step_id: inserted.id,
-          user_id: user.id,
-          move:true, 
-          view:true,
-          edit:true,
-          create:true,
-          delete:true
-        };
-        const { data, errorStep } = await supabase
-        .from("kanban_steps_permissions")
-        .insert(payload)
-        .select() // importante para receber o registro criado
-        .single(); // pega apenas um registro, não array
+              const payload = {
+                step_id: inserted.id,
+                user_id: user.id,
+                move:true, 
+                view:true,
+                edit:true,
+                create:true,
+                delete:true
+              };
+              const { data, errorStep } = await supabase
+              .from("kanban_steps_permissions")
+              .insert(payload)
+              .select() // importante para receber o registro criado
+              .single(); // pega apenas um registro, não array
 
-      if (error) {
-        console.error(error);
-        toast({ title: 'Erro', description: 'Não foi possível criar o Kanban' });
-        return;
-      }
+            if (error) {
+              console.error(error);
+              toast({ title: 'Erro', description: 'Não foi possível criar o Kanban' });
+              return;
+            }
 
-      // Agora você tem o ID do submodule criado
-      const path = `/admin/KanBan/${subm.id}`;
+            // Agora você tem o ID do submodule criado
+            const path = `/admin/KanBan/${subm.id}`;
 
-      // Opcional: atualizar sidebar ou redirecionar
-      toast({ title: 'Kanban criado!', description: newKanbanName });
-      fetchModules(); // atualizar menu
-      navigate(path);
-
-      }}
-    >
-      Criar
-    </button>
-  </div>
-)}
+            // Opcional: atualizar sidebar ou redirecionar
+            toast({ title: 'Kanban criado!', description: newKanbanName });
+            fetchModules(); // atualizar menu
+            navigate(path);
+            refreshSidebar()
+            }}
+          >
+            Criar
+          </Button>
+        </div>
+      )}
 
 
 
@@ -331,12 +321,12 @@ export default function ModernSidebarLayout({
       )}
       {/* --- BOTÃO ADICIONAR KanBan --- */}
       {selectedModule.label === 'KanBan' && (
-        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+        <div className="px-4 py-3 border-t">
           <Button
             variant="outline"
             size="sm"
             className="w-full justify-center border-dashed"
-            onClick={() => setCreateSubModuleModal(true)}
+            onClick={() => setOpenCreateKanban(!openCreateKanban)}
           >
             <Plus className="w-4 h-4 mr-1" /> Adicionar KanBan
           </Button>
